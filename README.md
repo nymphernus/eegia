@@ -1,0 +1,2 @@
+# eegia
+EEG Insights Agent
