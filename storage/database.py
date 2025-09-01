@@ -29,6 +29,8 @@ class EEGDatabase:
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_file_hash ON datasets(file_hash)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_created_at ON datasets(created_at)")
     
     def add_dataset(self, filename: str, file_hash: str, 
                    sfreq: float, n_channels: int, n_samples: int, 
@@ -36,7 +38,7 @@ class EEGDatabase:
         dataset_id = str(uuid.uuid4())
         
         data_file_path = os.path.join(self.data_dir, f"{dataset_id}.npy")
-        np.save(data_file_path, data)
+        np.save(data_file_path, data, allow_pickle=False)
         
         try:
             with sqlite3.connect(self.db_path) as conn:
@@ -81,7 +83,7 @@ class EEGDatabase:
     def get_dataset_data(self, dataset_id: str) -> Optional[np.ndarray]:
         data_file_path = os.path.join(self.data_dir, f"{dataset_id}.npy")
         if os.path.exists(data_file_path):
-            return np.load(data_file_path)
+            return np.load(data_file_path, mmap_mode="r")
         return None
     
     def list_datasets(self) -> List[Dict]:

@@ -3,19 +3,20 @@ import numpy as np
 from typing import Optional
 from storage.database import EEGDatabase
 from .sample import EEGSample
+from core.utils.hashing import compute_array_hash
 
 class DataManager:
     def __init__(self):
         self.db = EEGDatabase()
     
     def add_sample(self, sample: EEGSample, filename: str) -> str:
-        file_hash = self._compute_hash(sample.data)
+        file_hash = compute_array_hash(sample.data)
         
         existing_id = self.db.dataset_exists(file_hash)
         if existing_id:
             return existing_id
         
-        dataset_id = self.db.add_dataset(
+        return self.db.add_dataset(
             filename=filename,
             file_hash=file_hash,
             sfreq=sample.sfreq,
@@ -25,7 +26,6 @@ class DataManager:
             data=sample.data,
             metadata=sample.metadata
         )
-        return dataset_id
     
     def get_sample(self, dataset_id: str) -> Optional[EEGSample]:
         info = self.db.get_dataset_info(dataset_id)

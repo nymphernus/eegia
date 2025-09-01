@@ -10,6 +10,7 @@ setup_project_paths()
 
 from core.data.loader import load_edf, load_csv
 from core.data.manager import DataManager
+from core.utils.hashing import compute_file_hash
 
 if 'page_initialized' not in st.session_state:
     st.session_state.page_initialized = True
@@ -34,11 +35,10 @@ time_samples = st.sidebar.slider("Количество отсчётов", min_va
 
 # Загрузка файла
 uploaded_file = st.file_uploader("Загрузите EEG файл (.edf или .csv)", type=["edf", "csv"])
-
 if uploaded_file is not None:
     file_bytes = uploaded_file.getvalue()
+    fhash = compute_file_hash(file_bytes)
     file_type = uploaded_file.name.split(".")[-1]
-    fhash = file_hash(file_bytes)
 
     # Проверяем существование
     existing_id = None
