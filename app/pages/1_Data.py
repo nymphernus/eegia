@@ -8,48 +8,18 @@ from __init__ import setup_project_paths
 setup_project_paths()
 
 from core.data.loader import load_edf, load_csv
-from core.data.manager import DataManager
 
 st.title("📂 Данные")
 
+# Панель настроек графика
 st.sidebar.header("⚙️ Настройки графика")
+amplitude_scale = st.sidebar.slider("Масштаб амплитуды", min_value=0.5, max_value=10000.0, value=10.0, step=0.000001, format="%.1f")
+time_samples = st.sidebar.slider("Количество отсчётов", min_value=100, max_value=50000, value=5000, step=100)
+vertical_spacing = st.sidebar.slider("Расстояние между каналами", min_value=0.5, max_value=1000.0, value=10.0, step=0.00001, format="%.1f")
+channels_to_show = st.sidebar.slider("Количество каналов", min_value=1, max_value=64, value=32, step=1)
 
-amplitude_scale = st.sidebar.slider(
-    "Масштаб амплитуды", 
-    min_value=0.5, 
-    max_value=10000.0, 
-    value=10.0, 
-    step=0.000001,
-    format="%.1f"
-)
-
-time_samples = st.sidebar.slider(
-    "Количество отсчётов", 
-    min_value=100, 
-    max_value=50000, 
-    value=5000, 
-    step=100
-)
-
-vertical_spacing = st.sidebar.slider(
-    "Вертикальное расстояние между каналами", 
-    min_value=0.5, 
-    max_value=1000.0, 
-    value=10.0, 
-    step=0.00001,
-    format="%.1f"
-)
-
-channels_to_show = st.sidebar.slider(
-    "Количество каналов", 
-    min_value=1, 
-    max_value=64, 
-    value=32, 
-    step=1
-)
-
+# Загрузка файла
 uploaded_file = st.file_uploader("Загрузите EEG файл (.edf или .csv)", type=["edf", "csv"])
-
 if uploaded_file is not None:
     file_type = uploaded_file.name.split(".")[-1]
     
@@ -73,11 +43,13 @@ if uploaded_file is not None:
 
     st.success(f"Файл {uploaded_file.name} успешно загружен!")
     st.write(f"Частота дискретизации: {sample.sfreq} Hz")
-    st.write(f"Каналы: {sample.ch_names[:5]}... ({len(sample.ch_names)} всего)")
-    st.write(f"Размер данных: {sample.data.shape}")
+    st.write(f"Количество отсчётов: {sample.data.shape[1]}")
+    st.write(f"**Каналы** ({sample.data.shape[0]} всего):")
 
-    st.write(f"Диапазон значений в первом канале: [{sample.data[0].min():.6f}, {sample.data[0].max():.6f}]")
-    
+    # Показываем в виде тегов
+    channels_text = "  ".join([f"`{ch}`" for ch in sample.ch_names])
+    st.markdown(channels_text)
+
     fig, ax = plt.subplots(figsize=(12, 8))
     
     time_limit = min(time_samples, sample.data.shape[1])
