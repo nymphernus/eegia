@@ -17,13 +17,35 @@ with st.sidebar:
     st.header("🖥️ Устройства")
     try:
         import torch
+        st.markdown("**PyTorch:** " + torch.__version__)
+        
         if torch.cuda.is_available():
-            st.success(f"✅ CUDA ({torch.cuda.device_count()} устройств)")
-            st.info(torch.cuda.get_device_name())
+            st.success(f"✅ CUDA: {torch.cuda.device_count()} устройств")
+            st.caption(f"GPU: {torch.cuda.get_device_name()}")
+            st.caption(f"Память: {torch.cuda.get_device_properties(0).total_memory // 1024 // 1024} MB")
         else:
             st.warning("⚠️ CUDA недоступна")
+            st.caption("Используется CPU")
+            
     except ImportError:
         st.error("❌ PyTorch не установлен")
+    try:
+        import tensorflow as tf
+        st.markdown("**TensorFlow:** " + tf.__version__)
+        gpu_devices = tf.config.list_physical_devices('GPU')
+        if gpu_devices:
+            st.success(f"✅ TF GPU: {len(gpu_devices)} устройств")
+        else:
+            st.warning("⚠️ TF GPU недоступна")
+    except ImportError:
+        pass
+    try:
+        import psutil
+        st.markdown("**Система:**")
+        st.caption(f"CPU: {psutil.cpu_count()} ядер")
+        st.caption(f"RAM: {psutil.virtual_memory().total // (1024**3)} GB")
+    except ImportError:
+        pass
 
 st.subheader("📥 Добавить модель")
 
