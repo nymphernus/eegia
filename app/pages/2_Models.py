@@ -6,7 +6,6 @@ import streamlit as st
 import tempfile
 from core.models.models_manager import ModelsManager
 
-# Инициализация
 if 'page_initialized' not in st.session_state:
     st.session_state.page_initialized = True
     st.set_page_config(layout="wide", initial_sidebar_state="expanded")
@@ -14,7 +13,6 @@ if 'page_initialized' not in st.session_state:
 st.title("🧠 Models")
 manager = ModelsManager()
 
-# Sidebar: Информация об устройствах
 with st.sidebar:
     st.header("🖥️ Устройства")
     try:
@@ -27,7 +25,6 @@ with st.sidebar:
     except ImportError:
         st.error("❌ PyTorch не установлен")
 
-# === Добавление модели ===
 st.subheader("📥 Добавить модель")
 
 source_type = st.radio("Источник", ["Файл", "HuggingFace Hub"], horizontal=True)
@@ -62,7 +59,6 @@ if st.button("🚀 Добавить в базу") and model_path:
     except Exception as e:
         st.error(f"❌ Ошибка: {e}")
 
-# === Список моделей ===
 st.subheader("📂 Доступные модели")
 models = manager.list_models()
 
@@ -104,7 +100,6 @@ else:
                     manager.delete_model(m['id'])
                     st.rerun()
 
-# === Инференс ===
 st.subheader("🔮 Инференс")
 if "current_model" in st.session_state:
     model = st.session_state["current_model"]
