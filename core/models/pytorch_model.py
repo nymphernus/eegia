@@ -8,8 +8,6 @@ class PyTorchModel(ModelBase):
         super().__init__(name)
         self.device = self._get_best_device()
         self.model = None
-        self.cache_dir = os.path.join("models", "pytorch")
-        os.makedirs(self.cache_dir, exist_ok=True)
 
     def _get_best_device(self) -> str:
         try:
