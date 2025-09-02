@@ -3,5 +3,6 @@
 **/__pycache__/
 /storage/raw_data/
 /storage/raw.db
-/models
+/storage/models.db
+/storage/models
 check.py

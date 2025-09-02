@@ -9,7 +9,7 @@ class TransformersModel(ModelBase):
         self.device = self._get_best_device()
         self.model = None
         self.tokenizer = None
-        self.cache_dir = os.path.join("models", "transformers")
+        self.cache_dir = os.path.join("storage", "models", "transformers")
         os.makedirs(self.cache_dir, exist_ok=True)
 
     def _get_best_device(self) -> str:
@@ -81,7 +81,6 @@ class TransformersModel(ModelBase):
         return {
             "name": self.name,
             "framework": "HuggingFace Transformers",
-            "requested_device": self.requested_device,
             "actual_device": self.device,
             "cache_dir": self.cache_dir,
             "total_params": f"{total_params:,}",

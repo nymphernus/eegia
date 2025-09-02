@@ -1,7 +1,7 @@
 import hashlib
 import numpy as np
 from typing import Optional
-from storage.database import EEGDatabase
+from storage.eeg_database import EEGDatabase
 from .sample import EEGSample
 from core.utils.hashing import compute_array_hash
 

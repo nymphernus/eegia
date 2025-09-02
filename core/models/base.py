@@ -8,15 +8,12 @@ class ModelBase(ABC):
 
     @abstractmethod
     def load(self, model_path: str):
-        """Загрузка модели"""
         pass
 
     @abstractmethod
     def predict(self, data: np.ndarray) -> Any:
-        """Запуск инференса на входных данных"""
         pass
 
     @abstractmethod
     def get_info(self) -> Dict[str, Any]:
-        """Информация о модели (тип, размер, устройство и т.д.)"""
         pass
