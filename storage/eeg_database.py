@@ -54,11 +54,22 @@ class EEGDatabase:
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY(parent_id) REFERENCES datasets(id)
                 );
+                CREATE TABLE IF NOT EXISTS features_datasets (
+                        id TEXT PRIMARY KEY,
+                        parent_id TEXT NOT NULL,
+                        extractor_config TEXT NOT NULL,
+                        X_shape TEXT,
+                        y_shape TEXT,
+                        metadata TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY(parent_id) REFERENCES processed_datasets(id)
+                    );
                 
                 CREATE INDEX IF NOT EXISTS idx_file_hash ON datasets(file_hash);
                 CREATE INDEX IF NOT EXISTS idx_created_at ON datasets(created_at);
                 CREATE INDEX IF NOT EXISTS idx_proc_parent ON processed_datasets(parent_id);
                 CREATE INDEX IF NOT EXISTS idx_proc_created ON processed_datasets(created_at);
+                CREATE INDEX IF NOT EXISTS idx_features_parent ON features_datasets(parent_id);
             """)
     
     def _format_datetime(self, dt_string: str) -> str:
@@ -123,6 +134,59 @@ class EEGDatabase:
                 cursor = conn.execute("SELECT id FROM datasets WHERE file_hash = ?", (file_hash,))
                 row = cursor.fetchone()
                 return row[0] if row else None
+   
+    def get_dataset_info(self, dataset_id: str) -> Optional[Dict]:
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute("SELECT * FROM datasets WHERE id = ?", (dataset_id,))
+            row = cursor.fetchone()
+            
+            if not row:
+                return None
+                
+            return {
+                'id': row['id'],
+                'filename': row['filename'],
+                'file_hash': row['file_hash'],
+                'sfreq': row['sfreq'],
+                'n_channels': row['n_channels'],
+                'n_samples': row['n_samples'],
+                'ch_names': json.loads(row['ch_names']),
+                'metadata': json.loads(row['metadata']) if row['metadata'] else None,
+                'created_at': row['created_at']
+            }
+    
+    def get_dataset_data(self, dataset_id: str) -> Optional[np.ndarray]:
+        return self._load_data_file(dataset_id)
+    
+    def list_datasets(self) -> List[Dict]:
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute("""
+                SELECT id, filename, sfreq, n_channels, n_samples, file_hash, created_at
+                FROM datasets 
+                ORDER BY created_at DESC
+            """)
+            
+            results = []
+            for row in cursor.fetchall():
+                row_dict = dict(row)
+                row_dict['created_at_formatted'] = self._format_datetime(row_dict['created_at'])
+                results.append(row_dict)
+            return results
+    
+    def delete_dataset(self, dataset_id: str) -> bool:
+        self._remove_data_file(dataset_id)
+        
+        with sqlite3.connect(self.db_path) as conn:
+            result = conn.execute("DELETE FROM datasets WHERE id = ?", (dataset_id,))
+            return result.rowcount > 0
+    
+    def dataset_exists(self, file_hash: str) -> Optional[str]:
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute("SELECT id FROM datasets WHERE file_hash = ?", (file_hash,))
+            row = cursor.fetchone()
+            return row[0] if row else None
     
     def add_processed_dataset(self, parent_id: str, sample, pipeline_cfg: dict) -> str:
         proc_id = str(uuid.uuid4())
@@ -199,55 +263,67 @@ class EEGDatabase:
             result = conn.execute("DELETE FROM processed_datasets WHERE id = ?", (proc_id,))
             return result.rowcount > 0
         
-    def get_dataset_info(self, dataset_id: str) -> Optional[Dict]:
-        with sqlite3.connect(self.db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.execute("SELECT * FROM datasets WHERE id = ?", (dataset_id,))
-            row = cursor.fetchone()
-            
-            if not row:
-                return None
-                
-            return {
-                'id': row['id'],
-                'filename': row['filename'],
-                'file_hash': row['file_hash'],
-                'sfreq': row['sfreq'],
-                'n_channels': row['n_channels'],
-                'n_samples': row['n_samples'],
-                'ch_names': json.loads(row['ch_names']),
-                'metadata': json.loads(row['metadata']) if row['metadata'] else None,
-                'created_at': row['created_at']
-            }
-    
-    def get_dataset_data(self, dataset_id: str) -> Optional[np.ndarray]:
-        return self._load_data_file(dataset_id)
-    
-    def list_datasets(self) -> List[Dict]:
-        with sqlite3.connect(self.db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.execute("""
-                SELECT id, filename, sfreq, n_channels, n_samples, file_hash, created_at
-                FROM datasets 
-                ORDER BY created_at DESC
-            """)
-            
-            results = []
-            for row in cursor.fetchall():
-                row_dict = dict(row)
-                row_dict['created_at_formatted'] = self._format_datetime(row_dict['created_at'])
-                results.append(row_dict)
-            return results
-    
-    def delete_dataset(self, dataset_id: str) -> bool:
-        self._remove_data_file(dataset_id)
+    def add_features_dataset(self, parent_id: str, extractor_config: dict, X: np.ndarray, y: Optional[np.ndarray], metadata: dict = None) -> str:
+        feat_id = str(uuid.uuid4())
+        self._save_data_file(f"{feat_id}_X", X)
+        if y is not None:
+            self._save_data_file(f"{feat_id}_y", y)
         
         with sqlite3.connect(self.db_path) as conn:
-            result = conn.execute("DELETE FROM datasets WHERE id = ?", (dataset_id,))
-            return result.rowcount > 0
-    
-    def dataset_exists(self, file_hash: str) -> Optional[str]:
+            conn.execute("""
+                INSERT INTO features_datasets 
+                (id, parent_id, extractor_config, X_shape, y_shape, metadata)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                feat_id,
+                parent_id,
+                json.dumps(extractor_config),
+                json.dumps(X.shape),
+                json.dumps(y.shape) if y is not None else None,
+                json.dumps(metadata) if metadata else None
+            ))
+        return feat_id
+
+    def list_features(self, parent_id: Optional[str] = None) -> List[Dict]:
+        query = """
+            SELECT id, parent_id, X_shape, y_shape, created_at
+            FROM features_datasets
+            {where}
+            ORDER BY created_at DESC
+        """
+        where_clause = "WHERE parent_id = ?" if parent_id else ""
+        params = (parent_id,) if parent_id else ()
+        
         with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.execute("SELECT id FROM datasets WHERE file_hash = ?", (file_hash,))
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute(query.format(where=where_clause), params)
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_features_info(self, feat_id: str) -> Optional[Dict]:
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute("SELECT * FROM features_datasets WHERE id = ?", (feat_id,))
             row = cursor.fetchone()
-            return row[0] if row else None
+            if not row:
+                return None
+            return {
+                "id": row["id"],
+                "parent_id": row["parent_id"],
+                "extractor_config": json.loads(row["extractor_config"]),
+                "X_shape": json.loads(row["X_shape"]),
+                "y_shape": json.loads(row["y_shape"]) if row["y_shape"] else None,
+                "metadata": json.loads(row["metadata"]) if row["metadata"] else None,
+                "created_at": row["created_at"]
+            }
+
+    def get_features_data(self, feat_id: str) -> Optional[tuple]:
+        X = self._load_data_file(f"{feat_id}_X")
+        y = self._load_data_file(f"{feat_id}_y")
+        return (X, y) if X is not None else None
+
+    def delete_features(self, feat_id: str) -> bool:
+        self._remove_data_file(f"{feat_id}_X")
+        self._remove_data_file(f"{feat_id}_y")
+        with sqlite3.connect(self.db_path) as conn:
+            result = conn.execute("DELETE FROM features_datasets WHERE id = ?", (feat_id,))
+            return result.rowcount > 0

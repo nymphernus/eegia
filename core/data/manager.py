@@ -3,6 +3,7 @@ from storage.eeg_database import EEGDatabase
 from .sample import EEGSample
 from core.utils.hashing import compute_array_hash
 from core.preprocess.pipeline import PreprocessPipeline
+from core.features.base import FeatureExtractor
 
 
 class DataManager:
@@ -82,8 +83,8 @@ class DataManager:
             return processed_sample
 
         proc_id = self.db.add_processed_dataset(
-            parent_id=dataset_id, 
-            sample=processed_sample, 
+            parent_id=dataset_id,
+            sample=processed_sample,
             pipeline_cfg={}
         )
         return proc_id
@@ -126,3 +127,50 @@ class DataManager:
         if proc_info and proc_info.get('parent_id'):
             return self.get_sample_info(proc_info['parent_id'])
         return None
+
+    def extract_features(self, proc_id: str, extractor: FeatureExtractor, y=None, save: bool = True) -> Union[str, tuple]:
+        info = self.db.get_processed_info(proc_id)
+        if not info:
+            raise ValueError(f"Processed dataset {proc_id} not found")
+
+        data = self.db.get_processed_data(proc_id)
+        if data is None:
+            raise ValueError("Failed to load processed data")
+
+        X = extractor.fit_transform(data, y)
+
+        if not save:
+            return X, y
+
+        feat_id = self.db.add_features_dataset(
+            parent_id=proc_id,
+            extractor_config=extractor.to_dict(),
+            X=X,
+            y=y,
+            metadata={"input_shape": data.shape}
+        )
+        return feat_id
+
+    def save_features_from_array(self, parent_id: str, X, y=None, extractor_config: dict = None, metadata: dict = None) -> str:
+        if extractor_config is None:
+            extractor_config = {}
+        feat_id = self.db.add_features_dataset(
+            parent_id=parent_id,
+            extractor_config=extractor_config,
+            X=X,
+            y=y,
+            metadata=metadata
+        )
+        return feat_id
+
+    def list_features(self, parent_id: Optional[str] = None) -> List[Dict]:
+        return self.db.list_features(parent_id=parent_id)
+
+    def get_features_data(self, feat_id: str):
+        return self.db.get_features_data(feat_id)
+
+    def get_features_info(self, feat_id: str):
+        return self.db.get_features_info(feat_id)
+
+    def delete_features(self, feat_id: str) -> bool:
+        return self.db.delete_features(feat_id)

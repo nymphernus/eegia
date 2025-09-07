@@ -16,3 +16,5 @@ torchaudio==2.6.0
 
 #other
 psutil==7.0.0
+sktime==0.38.5
+numba==0.61.2
