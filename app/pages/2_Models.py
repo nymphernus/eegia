@@ -14,6 +14,8 @@ st.title("🧠 Models")
 manager = ModelsManager()
 
 with st.sidebar:
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+    os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
     st.header("🖥️ Устройства")
     try:
         import torch
@@ -22,7 +24,7 @@ with st.sidebar:
         if torch.cuda.is_available():
             st.success(f"✅ CUDA: {torch.cuda.device_count()} устройств")
             st.caption(f"GPU: {torch.cuda.get_device_name()}")
-            st.caption(f"Память: {torch.cuda.get_device_properties(0).total_memory // 1024 // 1024} MB")
+            st.caption(f"GPU RAM: {torch.cuda.get_device_properties(0).total_memory // 1024 // 1024} MB")
         else:
             st.warning("⚠️ CUDA недоступна")
             st.caption("Используется CPU")
@@ -36,7 +38,7 @@ with st.sidebar:
         if gpu_devices:
             st.success(f"✅ TF GPU: {len(gpu_devices)} устройств")
         else:
-            st.warning("⚠️ TF GPU недоступна")
+            pass
     except ImportError:
         pass
     try:

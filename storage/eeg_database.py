@@ -9,14 +9,17 @@ from datetime import datetime
 class EEGDatabase:
     def __init__(self, db_path: str = "storage/raw.db"):
         self.db_path = db_path
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
         self.data_dir = "storage/raw_data"
-        os.makedirs(self.data_dir, exist_ok=True)
-        self.init_database()
+        self._init_storage()
+        self._init_database()
     
-    def init_database(self):
+    def _init_storage(self) -> None:
+        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        os.makedirs(self.data_dir, exist_ok=True)
+    
+    def _init_database(self) -> None:
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
+            conn.executescript("""
                 CREATE TABLE IF NOT EXISTS datasets (
                     id TEXT PRIMARY KEY,
                     filename TEXT NOT NULL,
@@ -27,18 +30,58 @@ class EEGDatabase:
                     ch_names TEXT,
                     metadata TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
+                );
+                
+                CREATE TABLE IF NOT EXISTS processed_datasets (
+                    id TEXT PRIMARY KEY,
+                    parent_id TEXT NOT NULL,
+                    pipeline_config TEXT NOT NULL,
+                    sfreq REAL,
+                    n_channels INTEGER,
+                    n_samples INTEGER,
+                    ch_names TEXT,
+                    metadata TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(parent_id) REFERENCES datasets(id)
+                );
+                
+                CREATE INDEX IF NOT EXISTS idx_file_hash ON datasets(file_hash);
+                CREATE INDEX IF NOT EXISTS idx_created_at ON datasets(created_at);
+                CREATE INDEX IF NOT EXISTS idx_proc_parent ON processed_datasets(parent_id);
+                CREATE INDEX IF NOT EXISTS idx_proc_created ON processed_datasets(created_at);
             """)
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_file_hash ON datasets(file_hash)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_created_at ON datasets(created_at)")
+    
+    def _format_datetime(self, dt_string: str) -> str:
+        if not dt_string:
+            return ""
+        try:
+            dt = datetime.fromisoformat(dt_string.replace('Z', '+00:00'))
+            return dt.strftime('%d.%m.%Y %H:%M')
+        except:
+            return dt_string
+    
+    def _save_data_file(self, data_id: str, data: np.ndarray) -> str:
+        file_path = os.path.join(self.data_dir, f"{data_id}.npy")
+        np.save(file_path, data, allow_pickle=False)
+        return file_path
+    
+    def _load_data_file(self, data_id: str) -> Optional[np.ndarray]:
+        file_path = os.path.join(self.data_dir, f"{data_id}.npy")
+        return np.load(file_path, mmap_mode="r") if os.path.exists(file_path) else None
+    
+    def _remove_data_file(self, data_id: str) -> bool:
+        file_path = os.path.join(self.data_dir, f"{data_id}.npy")
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            return True
+        return False
     
     def add_dataset(self, filename: str, file_hash: str, 
                    sfreq: float, n_channels: int, n_samples: int, 
                    ch_names: list, data: np.ndarray, metadata: dict = None) -> str:
         dataset_id = str(uuid.uuid4())
         
-        data_file_path = os.path.join(self.data_dir, f"{dataset_id}.npy")
-        np.save(data_file_path, data, allow_pickle=False)
+        self._save_data_file(dataset_id, data)
         
         try:
             with sqlite3.connect(self.db_path) as conn:
@@ -54,37 +97,110 @@ class EEGDatabase:
                 ))
             return dataset_id
         except sqlite3.IntegrityError:
-            if os.path.exists(data_file_path):
-                os.remove(data_file_path)
+            self._remove_data_file(dataset_id)
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.execute("SELECT id FROM datasets WHERE file_hash = ?", (file_hash,))
                 row = cursor.fetchone()
                 return row[0] if row else None
     
+    def add_processed_dataset(self, parent_id: str, sample, pipeline_cfg: dict) -> str:
+        proc_id = str(uuid.uuid4())
+        
+        self._save_data_file(proc_id, sample.data)
+
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("""
+                INSERT INTO processed_datasets
+                (id, parent_id, pipeline_config, sfreq, n_channels, n_samples, ch_names, metadata)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                proc_id,
+                parent_id,
+                json.dumps(pipeline_cfg),
+                float(sample.sfreq),
+                int(sample.data.shape[0]),
+                int(sample.data.shape[-1]),
+                json.dumps(sample.ch_names),
+                json.dumps(sample.metadata or {})
+            ))
+        return proc_id
+    
+    def list_processed(self, parent_id: Optional[str] = None) -> List[Dict]:
+        query = """
+            SELECT id, parent_id, sfreq, n_channels, n_samples, created_at
+            FROM processed_datasets
+            {where}
+            ORDER BY created_at DESC
+        """
+        
+        where_clause = "WHERE parent_id = ?" if parent_id else ""
+        params = (parent_id,) if parent_id else ()
+        
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute(query.format(where=where_clause), params)
+            
+            results = []
+            for row in cursor.fetchall():
+                row_dict = dict(row)
+                row_dict['created_at_formatted'] = self._format_datetime(row_dict['created_at'])
+                results.append(row_dict)
+            return results
+
+    def get_processed_info(self, proc_id: str) -> Optional[Dict]:
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute("SELECT * FROM processed_datasets WHERE id = ?", (proc_id,))
+            row = cursor.fetchone()
+            
+            if not row:
+                return None
+                
+            return {
+                "id": row["id"],
+                "parent_id": row["parent_id"],
+                "pipeline_config": json.loads(row["pipeline_config"]),
+                "sfreq": row["sfreq"],
+                "n_channels": row["n_channels"],
+                "n_samples": row["n_samples"],
+                "ch_names": json.loads(row["ch_names"]),
+                "metadata": json.loads(row["metadata"]) if row["metadata"] else None,
+                "created_at": row["created_at"],
+            }
+
+    def get_processed_data(self, proc_id: str) -> Optional[np.ndarray]:
+        return self._load_data_file(proc_id)
+
+    def delete_processed(self, proc_id: str) -> bool:
+        self._remove_data_file(proc_id)
+        
+        with sqlite3.connect(self.db_path) as conn:
+            result = conn.execute("DELETE FROM processed_datasets WHERE id = ?", (proc_id,))
+            return result.rowcount > 0
+        
     def get_dataset_info(self, dataset_id: str) -> Optional[Dict]:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute("SELECT * FROM datasets WHERE id = ?", (dataset_id,))
             row = cursor.fetchone()
-            if row:
-                return {
-                    'id': row['id'],
-                    'filename': row['filename'],
-                    'file_hash': row['file_hash'],
-                    'sfreq': row['sfreq'],
-                    'n_channels': row['n_channels'],
-                    'n_samples': row['n_samples'],
-                    'ch_names': json.loads(row['ch_names']),
-                    'metadata': json.loads(row['metadata']) if row['metadata'] else None,
-                    'created_at': row['created_at']
-                }
-        return None
+            
+            if not row:
+                return None
+                
+            return {
+                'id': row['id'],
+                'filename': row['filename'],
+                'file_hash': row['file_hash'],
+                'sfreq': row['sfreq'],
+                'n_channels': row['n_channels'],
+                'n_samples': row['n_samples'],
+                'ch_names': json.loads(row['ch_names']),
+                'metadata': json.loads(row['metadata']) if row['metadata'] else None,
+                'created_at': row['created_at']
+            }
     
     def get_dataset_data(self, dataset_id: str) -> Optional[np.ndarray]:
-        data_file_path = os.path.join(self.data_dir, f"{dataset_id}.npy")
-        if os.path.exists(data_file_path):
-            return np.load(data_file_path, mmap_mode="r")
-        return None
+        return self._load_data_file(dataset_id)
     
     def list_datasets(self) -> List[Dict]:
         with sqlite3.connect(self.db_path) as conn:
@@ -94,22 +210,16 @@ class EEGDatabase:
                 FROM datasets 
                 ORDER BY created_at DESC
             """)
+            
             results = []
             for row in cursor.fetchall():
                 row_dict = dict(row)
-                if row_dict['created_at']:
-                    try:
-                        dt = datetime.fromisoformat(row_dict['created_at'].replace('Z', '+00:00'))
-                        row_dict['created_at_formatted'] = dt.strftime('%d.%m.%Y %H:%M')
-                    except:
-                        row_dict['created_at_formatted'] = row_dict['created_at']
+                row_dict['created_at_formatted'] = self._format_datetime(row_dict['created_at'])
                 results.append(row_dict)
             return results
     
     def delete_dataset(self, dataset_id: str) -> bool:
-        data_file_path = os.path.join(self.data_dir, f"{dataset_id}.npy")
-        if os.path.exists(data_file_path):
-            os.remove(data_file_path)
+        self._remove_data_file(dataset_id)
         
         with sqlite3.connect(self.db_path) as conn:
             result = conn.execute("DELETE FROM datasets WHERE id = ?", (dataset_id,))

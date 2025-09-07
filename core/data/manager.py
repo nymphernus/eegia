@@ -1,54 +1,129 @@
-import hashlib
+from typing import Optional, List, Dict, Union
+import json
+import uuid
 import numpy as np
-from typing import Optional
+
 from storage.eeg_database import EEGDatabase
 from .sample import EEGSample
 from core.utils.hashing import compute_array_hash
+from core.preprocess.pipeline import PreprocessPipeline
+
 
 class DataManager:
     def __init__(self):
         self.db = EEGDatabase()
-    
+
     def add_sample(self, sample: EEGSample, filename: str) -> str:
         file_hash = compute_array_hash(sample.data)
-        
         existing_id = self.db.dataset_exists(file_hash)
         if existing_id:
             return existing_id
-        
         return self.db.add_dataset(
             filename=filename,
             file_hash=file_hash,
-            sfreq=sample.sfreq,
-            n_channels=sample.data.shape[0],
-            n_samples=sample.data.shape[1],
+            sfreq=float(sample.sfreq),
+            n_channels=int(sample.data.shape[0]),
+            n_samples=int(sample.data.shape[-1]),
             ch_names=sample.ch_names,
             data=sample.data,
-            metadata=sample.metadata
+            metadata=sample.metadata,
         )
-    
+
     def get_sample(self, dataset_id: str) -> Optional[EEGSample]:
         info = self.db.get_dataset_info(dataset_id)
         if not info:
             return None
-        
         data = self.db.get_dataset_data(dataset_id)
         if data is None:
             return None
-        
         return EEGSample(
             data=data,
-            sfreq=info['sfreq'],
-            ch_names=info['ch_names'],
-            metadata=info['metadata'],
-            raw_path=info['filename']
+            sfreq=info["sfreq"],
+            ch_names=info["ch_names"],
+            metadata=info.get("metadata"),
+            raw_path=info.get("filename"),
         )
-    
+
     def list_samples(self) -> list:
         return self.db.list_datasets()
-    
+
     def delete_sample(self, dataset_id: str) -> bool:
         return self.db.delete_dataset(dataset_id)
-    
-    def _compute_hash(self, data: np.ndarray) -> str:
-        return hashlib.md5(data.tobytes()).hexdigest()
+
+    def apply_pipeline(self, dataset_id: str, pipeline: PreprocessPipeline, save: bool = True) -> Union[str, EEGSample]:
+        sample = self.get_sample(dataset_id)
+        if sample is None:
+            raise ValueError(f"Dataset {dataset_id} not found")
+
+        X = pipeline.fit_transform(sample.data)
+
+        final_sfreq = float(sample.sfreq)
+        for step in getattr(pipeline, "steps", []):
+            if step.name.lower() in ("resample",):
+                params = step.params
+                if "target_rate" in params:
+                    final_sfreq = float(params["target_rate"])
+                elif "new_sfreq" in params:
+                    final_sfreq = float(params["new_sfreq"])
+                elif "target_sfreq" in params:
+                    final_sfreq = float(params["target_sfreq"])
+
+        processed_sample = EEGSample(
+            data=X,
+            sfreq=final_sfreq,
+            ch_names=sample.ch_names,
+            subject_id=sample.subject_id,
+            session_id=sample.session_id,
+            task=sample.task,
+            labels=sample.labels,
+            metadata={
+                "pipeline": pipeline.to_dict(),
+                "input_shape": list(sample.data.shape),
+                "output_shape": list(X.shape),
+            },
+        )
+
+        if not save:
+            return processed_sample
+
+        proc_id = self.db.add_processed_dataset(parent_id=dataset_id, sample=processed_sample, pipeline_cfg=processed_sample.metadata["pipeline"])
+        return proc_id
+
+    def get_processed_sample(self, proc_id: str) -> Optional[EEGSample]:
+        info = self.db.get_processed_info(proc_id)
+        if not info:
+            return None
+        data = self.db.get_processed_data(proc_id)
+        if data is None:
+            return None
+        return EEGSample(
+            data=data,
+            sfreq=info["sfreq"],
+            ch_names=info["ch_names"],
+            metadata=info.get("metadata"),
+            raw_path=None,
+        )
+
+    def list_processed(self, parent_id: Optional[str] = None) -> List[Dict]:
+        return self.db.list_processed(parent_id=parent_id)
+
+    def delete_processed(self, proc_id: str) -> bool:
+        return self.db.delete_processed(proc_id)
+
+    def list_all_processed(self) -> List[Dict]:
+        return self.db.list_processed()
+
+    def get_processed_info(self, proc_id: str) -> Optional[Dict]:
+        return self.db.get_processed_info(proc_id)
+
+    def delete_processed_sample(self, proc_id: str) -> bool:
+        return self.db.delete_processed(proc_id)
+
+    def get_sample_info(self, sample_id: str) -> Optional[Dict]:
+        return self.db.get_dataset_info(sample_id)
+
+    def get_processed_parent_info(self, proc_id: str) -> Optional[Dict]:
+        proc_info = self.get_processed_info(proc_id)
+        if proc_info and proc_info.get('parent_id'):
+            return self.get_sample_info(proc_info['parent_id'])
+        return None

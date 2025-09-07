@@ -1,2 +1,1 @@
-# eegia
-EEG Insights Agent
+# EEG Insights Agent
