@@ -16,9 +16,10 @@ if "page_initialized" not in st.session_state:
     st.set_page_config(layout="wide", initial_sidebar_state="expanded")
     st.session_state.page_initialized = True
 
-st.title("⚙️ EEG Preprocessing Pipeline")
+st.title("⚙️ Pipeline предобработки сигналов")
 
 manager = DataManager()
+
 
 st.sidebar.header("🛠️ Параметры")
 use_notch = st.sidebar.checkbox("🔌 Notch", value=False)

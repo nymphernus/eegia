@@ -10,34 +10,40 @@ st.set_page_config(
     layout="wide"
 )
 
+st.sidebar.header("🖥️ Система")
+import platform
+def get_os_version():
+    if platform.system() == "Windows":
+        build_number = int(platform.version().split('.')[-1])
+        return "Windows 11" if build_number >= 22000 else "Windows 10"
+    return f"{platform.system()} {platform.release()}"
+st.sidebar.caption(f"ОС: {get_os_version()}")
+st.sidebar.caption(f"Python: {platform.python_version()}")
+st.sidebar.caption(f"Streamlit: {st.__version__}")
+st.sidebar.caption("Версия приложения 1.0.0 | © 2025")
+
 st.title("🧠 EEG Insights Agent")
 
-col1, col2, col3, col4, col5 = st.columns(5)
+col1, col2, col3 = st.columns(3)
 
 with col1:
-    if st.button("📂 Данные", use_container_width=True):
-        st.switch_page("pages/1_Data.py")
+    if st.button("📂 Загрузить данные", use_container_width=True):
+        st.switch_page("pages/1_Load_Datasets.py")
         
 with col2:
-    if st.button("🧠 Модели", use_container_width=True):
-        st.switch_page("pages/2_Models.py")
-        
+    if st.button("🧠 Подключить модели", use_container_width=True):
+        st.switch_page("pages/2_Load_Models.py")
+    
 with col3:
+    if st.button("🧠 Обработанные данные", use_container_width=True):
+        st.switch_page("pages/4_Processed_Data.py")
+
+col1, col2 = st.columns(2)
+
+with col1:
     if st.button("⚙️ Pipeline", use_container_width=True):
         st.switch_page("pages/3_Pipeline.py")
         
-with col4:
+with col2:
     if st.button("📊 Benchmark", use_container_width=True):
-        st.switch_page("pages/4_Benchmark.py")
-        
-with col5:
-    if st.button("🔧 Настройки", use_container_width=True):
-        st.switch_page("pages/5_Settings.py")
-
-st.header("🖥️ Характеристики системы")
-    
-import platform
-st.caption(f"ОС: {platform.system()} {platform.release()}")
-st.caption(f"Python: {platform.python_version()}")
-st.caption(f"Streamlit: {st.__version__}")
-st.caption("Версия приложения 1.0.0 | © 2025")
+        st.switch_page("pages/5_Benchmark.py")

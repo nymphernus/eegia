@@ -10,7 +10,7 @@ if 'page_initialized' not in st.session_state:
     st.session_state.page_initialized = True
     st.set_page_config(layout="wide", initial_sidebar_state="expanded")
 
-st.title("🧠 Models")
+st.title("🧠 Подключение моделей")
 manager = ModelsManager()
 
 with st.sidebar:

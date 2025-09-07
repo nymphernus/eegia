@@ -1,8 +1,4 @@
 from typing import Optional, List, Dict, Union
-import json
-import uuid
-import numpy as np
-
 from storage.eeg_database import EEGDatabase
 from .sample import EEGSample
 from core.utils.hashing import compute_array_hash
@@ -77,7 +73,6 @@ class DataManager:
             task=sample.task,
             labels=sample.labels,
             metadata={
-                "pipeline": pipeline.to_dict(),
                 "input_shape": list(sample.data.shape),
                 "output_shape": list(X.shape),
             },
@@ -86,7 +81,11 @@ class DataManager:
         if not save:
             return processed_sample
 
-        proc_id = self.db.add_processed_dataset(parent_id=dataset_id, sample=processed_sample, pipeline_cfg=processed_sample.metadata["pipeline"])
+        proc_id = self.db.add_processed_dataset(
+            parent_id=dataset_id, 
+            sample=processed_sample, 
+            pipeline_cfg={}
+        )
         return proc_id
 
     def get_processed_sample(self, proc_id: str) -> Optional[EEGSample]:

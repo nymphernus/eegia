@@ -19,7 +19,7 @@ if 'page_initialized' not in st.session_state:
         initial_sidebar_state="expanded"
     )
     
-st.title("📂 Данные")
+st.title("📂 Загрузка датасетов")
 
 manager = DataManager()
 

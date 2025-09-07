@@ -4,7 +4,8 @@ import os
 import uuid
 from typing import Optional, Dict, List
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timezone
+import time
 
 class EEGDatabase:
     def __init__(self, db_path: str = "storage/raw.db"):
@@ -12,6 +13,15 @@ class EEGDatabase:
         self.data_dir = "storage/raw_data"
         self._init_storage()
         self._init_database()
+        self.timezone_offset = self._get_local_timezone_offset()
+    
+    def _get_local_timezone_offset(self) -> int:
+        local_time = time.localtime()
+        utc_time = time.gmtime()
+        
+        offset_seconds = time.mktime(local_time) - time.mktime(utc_time)
+        offset_hours = int(offset_seconds / 3600)
+        return offset_hours
     
     def _init_storage(self) -> None:
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
@@ -55,9 +65,20 @@ class EEGDatabase:
         if not dt_string:
             return ""
         try:
-            dt = datetime.fromisoformat(dt_string.replace('Z', '+00:00'))
-            return dt.strftime('%d.%m.%Y %H:%M')
-        except:
+            if 'T' in dt_string:
+                if 'Z' in dt_string:
+                    dt = datetime.fromisoformat(dt_string.replace('Z', '+00:00'))
+                else:
+                    dt = datetime.fromisoformat(dt_string)
+            else:
+                dt = datetime.strptime(dt_string, '%Y-%m-%d %H:%M:%S')
+            
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            
+            local_dt = dt.astimezone()
+            return local_dt.strftime('%d.%m.%Y %H:%M')
+        except Exception as e:
             return dt_string
     
     def _save_data_file(self, data_id: str, data: np.ndarray) -> str:

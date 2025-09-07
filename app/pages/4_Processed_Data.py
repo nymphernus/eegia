@@ -49,108 +49,85 @@ else:
         with st.expander(f"📁 {source_name} ({len(processed_list)} обработок)", expanded=False):
             if source_info:
                 st.markdown(f"""
-                **Исходный файл:** `{source_name}`  
-                **Частота:** {source_info.get('sfreq', 'N/A')} Hz  
-                **Каналов:** {source_info.get('n_channels', 'N/A')}  
-                **Отсчётов:** {source_info.get('n_samples', 'N/A'):,}
-                """)
-            
-            st.divider()
+                **Исходный файл:** `{source_name}`  [ **Частота:** {source_info.get('sfreq', 'N/A')} Hz • **Каналов:** {source_info.get('n_channels', 'N/A')} • **Отсчётов:** {source_info.get('n_samples', 'N/A'):,} ]""")
+            st.markdown("")
             
             for item in processed_list:
                 proc_id = item['id']
                 short_id = proc_id[:8]
                 
-                card_class = "data-card"
-                if 'selected_processed_id' in st.session_state and st.session_state.selected_processed_id == proc_id:
-                    card_class += " highlight-card"
-                
-                
                 created_at = item.get('created_at_formatted', item.get('created_at', ''))
-                st.markdown(f"**Обработка ID:** `{short_id}` • **Создано:** {created_at}")
                 
-                st.markdown(f"""
-                **Параметры:** {item.get('sfreq', 'N/A')} Hz • 
-                {item.get('n_channels', 'N/A')} каналов • 
-                {item.get('n_samples', 'N/A'):,} отсчётов
-                """)
+                col1, col2 = st.columns([8, 1])
                 
-                proc_info = manager.get_processed_info(proc_id)
-                if proc_info and proc_info.get('pipeline_config'):
-                    pipeline_cfg = proc_info['pipeline_config']
-                    steps = pipeline_cfg.get('steps', [])
-                    if steps:
-                        st.markdown("**Пайплайн обработки:**")
-                        with st.expander("📋 Подробности", expanded=False):
-                            for i, step in enumerate(steps, 1):
-                                step_name = step.get('name', 'Unknown')
-                                step_params = step.get('params', {})
-                                st.markdown(f"{i}. **{step_name}**: {step_params}")
+                with col1:
+                    st.markdown(f"**ID обработки:** `{short_id}` • {created_at} [ **Частота:** {item.get('sfreq', 'N/A')} Hz • **Каналов:** {item.get('n_channels', 'N/A')} • **Отсчётов:** {item.get('n_samples', 'N/A'):,} ]")
                 
-                btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 2])
-                
-                with btn_col1:
-                    if st.button("👁 Просмотр", key=f"view_{proc_id}", use_container_width=True):
-                        st.session_state.selected_processed_id = proc_id
-                        st.rerun()
-                
-                with btn_col2:
-                    if st.button("🗑 Удалить", key=f"delete_{proc_id}", use_container_width=True):
-                        if manager.delete_processed_sample(proc_id):
-                            if 'selected_processed_id' in st.session_state and st.session_state.selected_processed_id == proc_id:
+                with col2:
+                    btn_cols = st.columns(2, gap="small")
+                    with btn_cols[0]:
+                        is_selected = 'selected_processed_id' in st.session_state and st.session_state.selected_processed_id == proc_id
+                        btn_label = "❌" if is_selected else "👁"
+                        if st.button(btn_label, key=f"toggle_{proc_id}"):
+                            if is_selected:
                                 del st.session_state.selected_processed_id
-                            st.success(f"✅ Обработка {short_id} удалена")
+                            else:
+                                st.session_state.selected_processed_id = proc_id
                             st.rerun()
-                        else:
-                            st.error(f"❌ Ошибка удаления {short_id}")
+                    with btn_cols[1]:
+                        if st.button("🗑", key=f"delete_{proc_id}"):
+                            if manager.delete_processed_sample(proc_id):
+                                if 'selected_processed_id' in st.session_state and st.session_state.selected_processed_id == proc_id:
+                                    del st.session_state.selected_processed_id
+                                st.success(f"✅ Обработка {short_id} удалена")
+                                st.rerun()
+                            else:
+                                st.error(f"❌ Ошибка удаления {short_id}")
                 
                 if 'selected_processed_id' in st.session_state and st.session_state.selected_processed_id == proc_id:
-                    st.divider()
-                    st.subheader(f"👁 Визуализация обработки {short_id}")
-                    
                     try:
-                        proc_sample = manager.get_processed_sample(proc_id)
-                        if proc_sample is not None and proc_sample.data is not None:
-                            data_shape = proc_sample.data.shape
-                            n_channels = data_shape[0]
-                            n_samples = data_shape[1] if len(data_shape) == 2 else data_shape[2]
-                            
-                            viz_col1, viz_col2, viz_col3 = st.columns(3)
-                            with viz_col1:
-                                st.metric("Каналов", n_channels)
-                            with viz_col2:
-                                st.metric("Отсчётов", f"{n_samples:,}")
-                            with viz_col3:
-                                st.metric("Частота", f"{proc_sample.sfreq} Hz")
-                            
-                            fig, ax = plt.subplots(figsize=(12, 6))
-                            
-                            display_channels = min(channels_to_show, n_channels)
-                            display_samples = min(time_samples, n_samples)
-                            
-                            if len(data_shape) == 3:
-                                data_to_plot = proc_sample.data[:, 0, :]
+                        with st.expander("📊 График", expanded=False):
+                            proc_sample = manager.get_processed_sample(proc_id)
+                            if proc_sample is not None and proc_sample.data is not None:
+                                data_shape = proc_sample.data.shape
+                                n_channels = data_shape[0]
+                                n_samples = data_shape[1] if len(data_shape) == 2 else data_shape[2]
+                                
+                                fig, ax = plt.subplots(figsize=(12, 6))
+                                
+                                display_channels = min(channels_to_show, n_channels)
+                                display_samples = min(time_samples, n_samples)
+                                
+                                if len(data_shape) == 3:
+                                    data_to_plot = proc_sample.data[:, 0, :]
+                                else:
+                                    data_to_plot = proc_sample.data
+                                
+                                for i in range(display_channels):
+                                    channel_data = data_to_plot[i][:display_samples] * amplitude_scale
+                                    ax.plot(channel_data + i * vertical_spacing, 
+                                        linewidth=0.8, alpha=0.8)
+                                
+                                ax.set_xlabel('Время (отсчёты)')
+                                ax.set_ylabel('Амплитуда')
+                                ax.set_title(f'Обработанные данные (ID: {short_id})')
+                                ax.grid(True, alpha=0.3)
+                                
+                                st.pyplot(fig)
                             else:
-                                data_to_plot = proc_sample.data
-                            
-                            for i in range(display_channels):
-                                channel_data = data_to_plot[i][:display_samples] * amplitude_scale
-                                ax.plot(channel_data + i * vertical_spacing, 
-                                       linewidth=0.8, alpha=0.8)
-                            
-                            ax.set_xlabel('Время (отсчёты)')
-                            ax.set_ylabel('Амплитуда')
-                            ax.set_title(f'Обработанные данные (ID: {short_id})')
-                            ax.grid(True, alpha=0.3)
-                            
-                            st.pyplot(fig)
-                            
-                            if st.button("❌ Закрыть визуализацию", key=f"close_viz_{proc_id}"):
-                                del st.session_state.selected_processed_id
-                                st.rerun()
-                        else:
-                            st.error("❌ Ошибка загрузки данных для визуализации")
+                                st.error("❌ Ошибка загрузки данных для визуализации")
+                        with st.expander("📋 Пайплайн обработки", expanded=False):
+                            proc_info = manager.get_processed_info(proc_id)
+                            if proc_info and proc_info.get('pipeline_config'):
+                                pipeline_cfg = proc_info['pipeline_config']
+                                steps = pipeline_cfg.get('steps', [])
+                                if steps:
+                                    for i, step in enumerate(steps, 1):
+                                        step_name = step.get('name', 'Unknown')
+                                        step_params = step.get('params', {})
+                                        st.markdown(f"{i}. **{step_name}**: {step_params}")
+                            else:
+                                st.error("❌ Ошибка загрузки данных пайплайна")
                     except Exception as e:
-                        st.error(f"❌ Ошибка визуализации: {str(e)}")
+                        st.error(f"❌ Ошибка загрузки данных обработки: {str(e)}")
                 
-                st.divider()
