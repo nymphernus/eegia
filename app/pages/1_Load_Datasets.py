@@ -12,12 +12,14 @@ from core.data.loader import load_edf, load_csv
 from core.data.manager import DataManager
 from core.utils.hashing import compute_file_hash
 
+st.set_page_config(
+        layout="wide",
+        page_title="EEG Insights Agent",
+        page_icon="🧬"
+    )
+
 if 'page_initialized' not in st.session_state:
     st.session_state.page_initialized = True
-    st.set_page_config(
-        layout="wide",
-        initial_sidebar_state="expanded"
-    )
     
 st.title("📂 Загрузка датасетов")
 

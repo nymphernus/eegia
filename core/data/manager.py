@@ -85,7 +85,7 @@ class DataManager:
         proc_id = self.db.add_processed_dataset(
             parent_id=dataset_id,
             sample=processed_sample,
-            pipeline_cfg={}
+            pipeline_cfg=pipeline.to_dict()
         )
         return proc_id
 

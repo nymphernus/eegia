@@ -11,13 +11,13 @@ from core.features.spectral import PSDExtractor, BandPowerExtractor
 from core.features.time_domain import TimeDomainExtractor
 from core.features.rocket import MiniRocketExtractor
 
-if "page_initialized" not in st.session_state:
-    st.set_page_config(
+st.set_page_config(
         layout="wide",
-        initial_sidebar_state="expanded",
-        page_title="Извлечение признаков",
-        page_icon="🔬"
+        page_title="EEG Insights Agent",
+        page_icon="🧬"
     )
+
+if "page_initialized" not in st.session_state:
     st.session_state.page_initialized = True
 
 st.title("🔬 Извлечение признаков")

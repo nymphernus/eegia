@@ -12,8 +12,13 @@ from core.preprocess.steps.filters import BandpassFilter, NotchFilter
 from core.preprocess.steps.resample_normalize import Resample, Normalize
 from core.preprocess.steps.artifacts import ReReference, ICAFilter, Epoching
 
+st.set_page_config(
+        layout="wide",
+        page_title="EEG Insights Agent",
+        page_icon="🧬"
+    )
+
 if "page_initialized" not in st.session_state:
-    st.set_page_config(layout="wide", initial_sidebar_state="expanded")
     st.session_state.page_initialized = True
 
 st.title("⚙️ Pipeline предобработки сигналов")

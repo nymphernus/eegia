@@ -6,14 +6,15 @@ import matplotlib.pyplot as plt
 
 from core.data.manager import DataManager
 
+st.set_page_config(
+        layout="wide",
+        page_title="EEG Insights Agent",
+        page_icon="🧬"
+    )
+
 if 'page_initialized' not in st.session_state:
     st.session_state.page_initialized = True
-    st.set_page_config(
-        layout="wide",
-        initial_sidebar_state="expanded",
-        page_title="Processed EEG Data",
-        page_icon="📊"
-    )
+
 
 st.title("📊 Обработанные данные")
 
