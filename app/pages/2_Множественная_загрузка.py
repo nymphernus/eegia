@@ -16,11 +16,11 @@ st.set_page_config(
     page_icon="🧬",
     layout="wide")
 
-st.title("🔗 Объединение локальных файлов")
+st.title("🔗 Множественная загрузка файлов")
 
 manager = DataManager()
 
-st.subheader("📂 Выберите файлы для объединения")
+st.subheader("📂 Выберите файлы")
 uploaded_files = st.file_uploader(
     "Загрузите несколько EEG файлов (.edf или .csv)", 
     type=["edf", "csv"], 
@@ -28,7 +28,7 @@ uploaded_files = st.file_uploader(
 )
 
 if not uploaded_files:
-    st.info("📥 Выберите несколько файлов одного типа для объединения")
+    st.info("📥 Выберите несколько файлов одного типа")
 else:
     file_types = [f.name.split('.')[-1].lower() for f in uploaded_files]
     if len(set(file_types)) > 1:

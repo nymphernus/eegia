@@ -21,7 +21,7 @@ st.set_page_config(
 if 'page_initialized' not in st.session_state:
     st.session_state.page_initialized = True
     
-st.title("📂 Загрузка датасетов")
+st.title("📂 Загрузка файлов ЭЭГ")
 
 manager = DataManager()
 

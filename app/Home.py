@@ -24,35 +24,27 @@ st.sidebar.caption("Версия приложения 1.0.0 | © 2025")
 
 st.title("🧬 EEG Insights Agent")
 
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-    if st.button("📂 Загрузить данные", use_container_width=True):
-        st.switch_page("pages/1_Load_Datasets.py")
-
-with col2:
-    if st.button("📂 Объединение файлов", use_container_width=True):
-        st.switch_page("pages/6_Multiload.py")
-          
-with col3:
-    if st.button("🔍 Обработанные данные", use_container_width=True):
-        st.switch_page("pages/4_Processed_Data.py")  
-
-with col4:
-    if st.button("🎓 Подключить модели", use_container_width=True):
-        st.switch_page("pages/2_Load_Models.py")
-
-
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    if st.button("⚙️ Pipeline", use_container_width=True):
-        st.switch_page("pages/3_Pipeline.py")
+    if st.button("📂 Загрузить данные", use_container_width=True):
+        st.switch_page("pages/1_Загрузка.py")
+
+with col2:
+    if st.button("📂 Множественная загрузка", use_container_width=True):
+        st.switch_page("pages/2_Множественная_загрузка.py")
+          
+with col3:
+    if st.button("🔍 Обработанные данные", use_container_width=True):
+        st.switch_page("pages/4_Обработанные_данные.py")
+
+
+col1, col2 = st.columns(2)
+
+with col1:
+    if st.button("⚙️ Обработка", use_container_width=True):
+        st.switch_page("pages/3_Обработка.py")
         
 with col2:
-    if st.button("📊 Features", use_container_width=True):
-        st.switch_page("pages/5_Features.py")
-
-with col3:
-    if st.button("📊 Benchmark", use_container_width=True):
-        st.switch_page("pages/5_Benchmark.py")
+    if st.button("📊 Экстракторы", use_container_width=True):
+        st.switch_page("pages/5_Экстракторы.py")
