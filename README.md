@@ -37,14 +37,18 @@
  cd eegia
 
  # Создаем виртуальное окружение (Опционально)
- python -m venv venv
+ python -m venv venv        # Windows
+ python3.10 -m venv venv    # Linux
+
+ # Переходи в виртуальное окружение
+ venv/Scripts/activate      # Windows
+ source venv/bin/activate   # Linux
 
  # Устанавливаем зависимости
  pip install -r requirements.txt
  
  # Запуск приложения
- streamlit run app/Home.py
- # Или через start.bat
+ streamlit run app/Home.py  # Или через start.bat для Windows
 
  # GUI: http://localhost:8501
  ```
