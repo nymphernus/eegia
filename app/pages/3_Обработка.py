@@ -55,11 +55,11 @@ epoch_len = st.sidebar.number_input("Epoch length (s)", min_value=0.5, max_value
 st.header("📂 Выбор сырого сигнала")
 datasets = manager.list_samples()
 if not datasets:
-    st.warning("Нет загруженных сырых данных. Перейдите на страницу 'Данные' и загрузите EDF/CSV.")
+    st.warning("Нет загруженных сырых данных.")
     st.stop()
 
 label_to_id = {f"{d['filename']} · {d['sfreq']:.0f}Hz · {d['id'][:8]}": d["id"] for d in datasets}
-selected_label = st.selectbox("Выберите датасет для предобработки", list(label_to_id.keys()))
+selected_label = st.selectbox("Выберите файл для предобработки", list(label_to_id.keys()))
 raw_id = label_to_id[selected_label]
 
 if st.session_state.get("selected_raw_id") != raw_id:
@@ -93,7 +93,7 @@ with col1:
         try:
             proc_id = manager.apply_pipeline(raw_id, pipeline, save=True)
             st.session_state["last_processed_id"] = proc_id
-            st.success(f"Готово! Сохранён обработанный набор (ID={proc_id[:8]})")
+            st.success(f"Готово! (ID={proc_id[:8]})")
         except Exception as e:
             st.error(f"Ошибка при применении пайплайна: {e}")
 
@@ -163,6 +163,6 @@ with c_proc:
             st.pyplot(plot_time(proc_sample.data, proc_sample.sfreq, "После предобработки"))
             st.pyplot(plot_psd(proc_sample.data, proc_sample.sfreq, "PSD после"))
         else:
-            st.error("Не удалось загрузить обработанный датасет.")
+            st.error("Не удалось загрузить")
     else:
-        st.info("Для этого набора нет обработанных версий. Примените пайплайн и сохраните результат.")
+        st.info("Для этого файла нет обработанных версий. Примените пайплайн и сохраните результат.")

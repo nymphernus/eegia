@@ -30,7 +30,7 @@ time_samples = st.sidebar.slider("Количество отсчётов", min_va
 processed_data = manager.list_all_processed()
 
 if not processed_data:
-    st.info("📥 Нет обработанных данных. Перейдите на страницу 'Pipeline' для обработки файлов.")
+    st.info("📥 Нет обработанных данных.")
 else:
     from collections import defaultdict
     grouped_data = defaultdict(list)

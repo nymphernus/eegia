@@ -26,7 +26,7 @@ manager = DataManager()
 
 proc_list = manager.list_processed()
 if not proc_list:
-    st.info("📥 Нет обработанных данных. Перейдите на страницу 'Pipeline' для обработки файлов.")
+    st.info("📥 Нет обработанных данных.")
     st.stop()
 
 from collections import defaultdict
@@ -134,7 +134,7 @@ if st.sidebar.button("🧪 Извлечь"):
 st.header("💾 Сохранённые признаки")
 features_list = manager.list_features(parent_id=selected_proc_id)
 if not features_list:
-    st.info("📥 Нет сохранённых фичей для этого датасета.")
+    st.info("📥 Нет сохранённых фичей.")
 else:
     for f in features_list:
         with st.expander(f"🧬 ID: `{f['id'][:8]}` • X_shape: {f.get('X_shape')} • {f.get('created_at_formatted', '')}", expanded=False):
@@ -156,38 +156,15 @@ else:
                         for e in extractors_list:
                             st.markdown(f"- {e}")
 
-            col1, col2, col3, col4 = st.columns(4)
+            col1, col2, col3 = st.columns(3)
             loaded_key = "loaded_features"
-            is_loaded = (
-                loaded_key in st.session_state and
-                isinstance(st.session_state[loaded_key], tuple) and
-                len(st.session_state[loaded_key]) == 2 and
-                st.session_state[loaded_key][0] is not None
-            )
-
-            if is_loaded and st.session_state.get("_loaded_feat_id") == f['id']:
-                if col1.button("↩️ Отменить загрузку", key=f"unload_{f['id']}"):
-                    del st.session_state[loaded_key]
-                    if "_loaded_feat_id" in st.session_state:
-                        del st.session_state["_loaded_feat_id"]
-                    st.success("↩️ Загрузка отменена")
-                    st.rerun()
-            else:
-                if col1.button("📥 Загрузить", key=f"load_{f['id']}"):
-                    loaded = manager.get_features_data(f['id'])
-                    if loaded:
-                        X_l, y_l = loaded
-                        st.session_state[loaded_key] = (np.array(X_l), None if y_l is None else np.array(y_l))
-                        st.session_state["_loaded_feat_id"] = f['id']
-                        st.success("✅ Фичи загружены в сессию")
-                        st.rerun()
-            if col2.button("👁 Предпросмотр", key=f"preview_{f['id']}"):
+            if col1.button("👁 Предпросмотр", key=f"preview_{f['id']}"):
                 loaded = manager.get_features_data(f['id'])
                 if loaded:
                     X_l, _ = loaded
                     df = pd.DataFrame(np.array(X_l)[:10, :min(20, X_l.shape[1])])
                     st.dataframe(df)
-            if col3.button("📊 График", key=f"plot_{f['id']}"):
+            if col2.button("📊 График", key=f"plot_{f['id']}"):
                 loaded = manager.get_features_data(f['id'])
                 if loaded:
                     X_l, _ = loaded
@@ -195,27 +172,7 @@ else:
                     ax.imshow(X_l[:10], aspect='auto', cmap='viridis')
                     ax.set_title("Первые 10 строк признаков")
                     st.pyplot(fig)
-            if col4.button("🗑 Удалить", key=f"del_{f['id']}"):
+            if col3.button("🗑 Удалить", key=f"del_{f['id']}"):
                 manager.delete_features(f['id'])
                 st.success("✅ Удалено")
                 st.rerun()
-
-if features_list:
-    if "loaded_features" in st.session_state:
-        Xl, yl = st.session_state["loaded_features"]
-        st.markdown(f"**Загружено:** {Xl.shape}")
-        cols = st.columns(2)
-        if cols[0].button("💾 Экспорт в Torch Dataset"):
-            try:
-                from core.features.dataset import to_torch_dataset
-                ds = to_torch_dataset(Xl, yl)
-                st.success("✅ PyTorch Dataset создан")
-            except Exception as e:
-                st.error(f"❌ Ошибка PyTorch: {e}")
-        if cols[1].button("💾 Экспорт в TF Dataset"):
-            try:
-                from core.features.dataset import to_tf_dataset
-                ds = to_tf_dataset(Xl, yl)
-                st.success("✅ TensorFlow Dataset создан")
-            except Exception as e:
-                st.error(f"❌ Ошибка TensorFlow: {e}")
