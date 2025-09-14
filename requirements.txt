@@ -18,3 +18,4 @@ mne==1.10.1
 psutil==7.0.0
 sktime==0.38.5
 numba==0.61.2
+PyYAML==6.0.2
