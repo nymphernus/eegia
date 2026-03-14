@@ -1,1 +1,12 @@
 notebook
+mlflow
+ipython
+matplotlib
+mne
+numpy
+pandas
+scikit_learn
+seaborn
+sktime
+numba
+optuna

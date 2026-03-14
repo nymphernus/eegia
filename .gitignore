@@ -3,3 +3,6 @@
 **/__pycache__/
 /.ipynb_checkpoints
 backup.ipynb
+mlflow.db
+/mlruns
+/temp_plots
