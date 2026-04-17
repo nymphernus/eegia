@@ -1,6 +1,5 @@
 notebook
 mlflow
-ipython
 matplotlib
 mne
 numpy
