@@ -4,6 +4,7 @@ import optuna
 
 from .datasets import load_selected_dataset
 from .utils import prepare_labeled_data, show_confusion_matrix
+from .models_fabric import get_models
 
 from datetime import datetime
 from time import time
@@ -16,7 +17,7 @@ from sklearn.metrics import accuracy_score, f1_score
 
 le = LabelEncoder()
 
-def start_training(dataset_list, dataset_res, cv, models, optuna_settings):
+def start_training(dataset_list, dataset_res, cv, optuna_settings):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     base_artifact_path = path.join("temp_plots", timestamp)
     makedirs(base_artifact_path, exist_ok=True)
@@ -25,6 +26,8 @@ def start_training(dataset_list, dataset_res, cv, models, optuna_settings):
         with mlflow.start_run(run_name=f"Dataset_{dataset_id}", nested=True):
             print(f"\n--- Обработка Датасета {dataset_id} ---")
             raw = load_selected_dataset(dataset_id)
+            sfreq = int(raw.info['sfreq'])
+            models = get_models(sfreq)
             X, y = prepare_labeled_data(raw, dataset_id)
             
             y_encoded = le.fit_transform(y)
@@ -71,6 +74,7 @@ def start_training(dataset_list, dataset_res, cv, models, optuna_settings):
 
                     mlflow.log_param("model_name", name)
                     mlflow.log_param("dataset_id", dataset_id)
+                    mlflow.log_param("sfreq", sfreq)
                     mlflow.log_params(study.best_params)
                     mlflow.log_metric("accuracy", acc)
                     mlflow.log_metric("f1_macro", f1)

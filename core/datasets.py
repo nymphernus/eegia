@@ -18,17 +18,17 @@ n_sub = int(getenv("N_SUB"))
 def load_selected_dataset(choice):
     match choice:
         case 1:
-            raw = eeg_bci()
+            raw = eeg_bci_load()
         case 2:
-            raw = mne_sample()
+            raw = mne_sample_load()
         case 3:
-            raw = erp_core()
+            raw = erp_core_load()
         case _:
             raise ValueError("Не существует")
     
     return raw
 
-def eeg_bci():
+def eeg_bci_load():
     print("Загрузка EEG BCI")
     subjects = range(1, n_sub + 1)
     runs = [3, 7, 11]
@@ -41,7 +41,7 @@ def eeg_bci():
     raw.set_montage('standard_1020', on_missing='ignore')
     return raw
 
-def mne_sample():
+def mne_sample_load():
     print("Загрузка MNE Sample")
     data_path = sample.data_path()
     raw_fname = data_path / 'MEG' / 'sample' / 'sample_audvis_raw.fif'
@@ -49,7 +49,7 @@ def mne_sample():
     raw.pick(['eeg', 'stim'])
     return raw
 
-def erp_core():
+def erp_core_load():
     print("Загрузка ERP Core")
     raw_fname = erp_core.data_path() / f'ERP-CORE_Subject-001_Task-Flankers_eeg.fif'
     raw = read_raw_fif(raw_fname, preload=True)

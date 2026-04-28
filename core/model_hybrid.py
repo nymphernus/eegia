@@ -3,7 +3,6 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.preprocessing import StandardScaler
 from sktime.transformations.panel.rocket import Rocket
 from mne.time_frequency import psd_array_welch
-from os import getenv
 import numpy as np
 
 '''
@@ -12,7 +11,7 @@ import numpy as np
 '''
 
 class EEGHybridExtractor(BaseEstimator, TransformerMixin):
-    def __init__(self, num_kernels=200, sfreq=int(getenv("SFREQ"))):
+    def __init__(self, num_kernels=200, sfreq=None):
         self.num_kernels = num_kernels
         self.sfreq = sfreq
         self.rocket = Rocket(num_kernels=self.num_kernels, random_state=42)
