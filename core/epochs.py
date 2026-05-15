@@ -11,9 +11,7 @@ import numpy as np
 Baseline correction вычитает среднее значение "пред-стимульного" периода, чтобы скомпенсировать возможный сдвиг напряжения в момент записи.
 '''
 
-def epochs_from_raw(raw, tmin=-0.2, tmax=0.8, event_id=None, picks='data', events=None):
-    # sfreq = int(getenv("SFREQ"))
-    sfreq = raw.info['sfreq']
+def epochs_from_raw(sfreq, raw, tmin=-0.2, tmax=0.8, event_id=None, picks='data', events=None):
     if events is None:
         events, _ = events_from_annotations(raw, verbose=False)
         if len(events) == 0:
@@ -25,7 +23,7 @@ def epochs_from_raw(raw, tmin=-0.2, tmax=0.8, event_id=None, picks='data', event
     
     raw_proc = raw.copy()
     raw_proc.filter(1, 40, fir_design='firwin', picks='data', verbose=False)
-    if raw_proc.info['sfreq'] > sfreq:
+    if raw_proc.info['sfreq'] != sfreq:
         raw_proc.resample(sfreq, verbose=False)
     raw_proc.set_eeg_reference('average', projection=False, verbose=False)
 
@@ -50,4 +48,4 @@ def epochs_from_raw(raw, tmin=-0.2, tmax=0.8, event_id=None, picks='data', event
     print(f"Всего эпох после фильтрации: {len(epochs)}")
     print(f"Классы: {dict(zip(*np.unique(y, return_counts=True)))}")
     
-    return X, y
+    return X, y, sfreq

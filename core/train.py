@@ -17,7 +17,7 @@ from sklearn.metrics import accuracy_score, f1_score
 
 le = LabelEncoder()
 
-def start_training(dataset_list, dataset_res, cv, optuna_settings):
+def start_training(dataset_list, dataset_res, cv, optuna_settings, resample_settings):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     base_artifact_path = path.join("temp_plots", timestamp)
     makedirs(base_artifact_path, exist_ok=True)
@@ -26,9 +26,8 @@ def start_training(dataset_list, dataset_res, cv, optuna_settings):
         with mlflow.start_run(run_name=f"Dataset_{dataset_id}", nested=True):
             print(f"\n--- Обработка Датасета {dataset_id} ---")
             raw = load_selected_dataset(dataset_id)
-            sfreq = int(raw.info['sfreq'])
-            models = get_models(sfreq)
-            X, y = prepare_labeled_data(raw, dataset_id)
+            models = get_models(raw.info['sfreq'], resample_settings, dataset_id)
+            X, y, sfreq = prepare_labeled_data(raw, dataset_id, resample_settings)
             
             y_encoded = le.fit_transform(y)
             unique_labels = le.classes_.astype(str)
@@ -72,9 +71,11 @@ def start_training(dataset_list, dataset_res, cv, optuna_settings):
                     acc = accuracy_score(y_encoded, y_pred)
                     f1 = f1_score(y_encoded, y_pred, average='macro', zero_division=0)
 
+                    resample_param = True if resample_settings[dataset_id] != False else False
                     mlflow.log_param("model_name", name)
                     mlflow.log_param("dataset_id", dataset_id)
-                    mlflow.log_param("sfreq", sfreq)
+                    mlflow.log_param("sfreq", int(sfreq))
+                    mlflow.log_param("resample", resample_param)
                     mlflow.log_params(study.best_params)
                     mlflow.log_metric("accuracy", acc)
                     mlflow.log_metric("f1_macro", f1)

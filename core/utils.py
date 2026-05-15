@@ -37,7 +37,12 @@ def show_confusion_matrix(y_encoded, y_pred, display_labels, name, dataset_id, b
 - Для ERP Core мы выделяем только те условия, которые отражают когнитивную нагрузку (Easy/Hard), отсеивая артефакты нажатия кнопок.
 '''
 
-def prepare_labeled_data(raw, dataset_id):
+def prepare_labeled_data(raw, dataset_id, resample_settings):
+    if resample_settings[dataset_id] != False:
+        sfreq_r = resample_settings[dataset_id]
+    else:
+        sfreq_r = raw.info['sfreq']
+        
     if dataset_id == 2:
         events = find_events(raw, stim_channel='STI 014', verbose=False)
     else:
@@ -56,4 +61,4 @@ def prepare_labeled_data(raw, dataset_id):
         events[np.isin(events[:, -1], [3, 4]), -1] = 201
         events[np.isin(events[:, -1], [5, 6]), -1] = 202
     
-    return epochs_from_raw(raw, events=events)
+    return epochs_from_raw(sfreq_r, raw, events=events)

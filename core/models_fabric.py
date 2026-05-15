@@ -7,10 +7,14 @@ from sktime.classification.kernel_based import RocketClassifier
 from core.converter import SktimeConverter
 from core.model_hybrid import EEGHybridExtractor
 
-def get_models(sfreq):
+def get_models(sfreq, resample_settings, dataset_id):
+    if resample_settings[dataset_id] != False:
+        sfreq_r = resample_settings[dataset_id]
+    else:
+        sfreq_r = sfreq
     models = {
         "Hybrid": Pipeline([
-            ('extractor', EEGHybridExtractor(sfreq=sfreq)),
+            ('extractor', EEGHybridExtractor(sfreq=sfreq_r)),
             ('classifier', RandomForestClassifier(class_weight='balanced', random_state=42))
         ]),
         "Rocket": Pipeline([
